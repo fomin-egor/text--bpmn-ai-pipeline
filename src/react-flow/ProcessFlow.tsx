@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+﻿import { useMemo, useState } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -16,9 +16,17 @@ import type { ProcessDefinition } from '../process-model/types';
 import { BpmnNode } from './BpmnNode';
 import { LaneBackground } from './LaneBackground';
 
-const nodeTypes = {
+const nodeTypes = Object.freeze({
   bpmnNode: BpmnNode,
-};
+});
+
+const fitViewOptions = Object.freeze({
+  padding: 0.16,
+});
+
+const defaultEdgeOptions = Object.freeze({
+  zIndex: 3,
+});
 
 interface ProcessFlowCanvasProps {
   process: ProcessDefinition;
@@ -46,8 +54,8 @@ function ProcessFlowCanvas({ process }: ProcessFlowCanvasProps) {
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        fitViewOptions={{ padding: 0.16 }}
-        defaultEdgeOptions={{ zIndex: 3 }}
+        fitViewOptions={fitViewOptions}
+        defaultEdgeOptions={defaultEdgeOptions}
         minZoom={0.35}
       >
         <LaneBackground metrics={layoutMetrics} poolLabel={process.pool.label} />
