@@ -129,6 +129,14 @@ textarea {
   flex-direction: column;
 }
 
+.diagnostics-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 20px 20px;
+}
+
+
 .tool-pane__header,
 .pane-header {
   display: flex;
@@ -358,6 +366,11 @@ textarea {
   margin: 8px 0 0 18px;
   padding: 0;
 }
+
+.issues-box--pane {
+  margin-bottom: 14px;
+}
+
 
 .raw-json-box {
   overflow: auto;

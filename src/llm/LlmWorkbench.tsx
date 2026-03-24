@@ -1,41 +1,51 @@
 ﻿import type { ProcessDefinition } from '../process-model/types';
+import { mapProcessIrToDefinition } from '../process-ir/mapProcessIrToDefinition';
+import { normalizeProcessIrDraft } from '../process-ir/normalizeProcessIr';
+import { parseProcessIrDraft } from '../process-ir/parseDraft';
+import type { ProcessIr } from '../process-ir/types';
+import { validateProcessIr } from '../process-ir/validateProcessIr';
 import { sendLlmChatRequest } from './api';
-import { mapDraftToProcessDefinition, parseAndValidateDraft } from './processDraft';
 import { PROCESS_GENERATION_SYSTEM_PROMPT } from './systemPrompt';
 import type { ChatMessage, LlmConnectionConfig, LlmTransport } from './types';
+
+interface ProcessDiagnosticsState {
+  rawLlmJson: string;
+  normalizedIr: ProcessIr | null;
+  normalizationWarnings: string[];
+  validationWarnings: string[];
+  validationErrors: string[];
+}
 
 interface LlmWorkbenchProps {
   connection: LlmConnectionConfig;
   messages: ChatMessage[];
   input: string;
-  validationErrors: string[];
   statusText: string;
   isLoading: boolean;
+  diagnostics: ProcessDiagnosticsState;
   onConnectionChange: (connection: LlmConnectionConfig) => void;
   onMessagesChange: (messages: ChatMessage[]) => void;
   onInputChange: (input: string) => void;
-  onValidationErrorsChange: (errors: string[]) => void;
   onStatusTextChange: (status: string) => void;
   onLoadingChange: (value: boolean) => void;
+  onDiagnosticsChange: (diagnostics: ProcessDiagnosticsState) => void;
   onProcessGenerated: (process: ProcessDefinition) => void;
-  onRawJsonChange: (rawJson: string) => void;
 }
 
 export function LlmWorkbench({
   connection,
   messages,
   input,
-  validationErrors,
   statusText,
   isLoading,
+  diagnostics,
   onConnectionChange,
   onMessagesChange,
   onInputChange,
-  onValidationErrorsChange,
   onStatusTextChange,
   onLoadingChange,
+  onDiagnosticsChange,
   onProcessGenerated,
-  onRawJsonChange,
 }: LlmWorkbenchProps) {
   const handleConnectionFieldChange = <K extends keyof LlmConnectionConfig>(key: K, value: LlmConnectionConfig[K]) => {
     onConnectionChange({
@@ -45,15 +55,6 @@ export function LlmWorkbench({
   };
 
   const handleProviderChange = (provider: 'openrouter' | 'local') => {
-    if (provider === 'local') {
-      onConnectionChange({
-        ...connection,
-        provider,
-        transport: 'server',
-      });
-      return;
-    }
-
     onConnectionChange({
       ...connection,
       provider,
@@ -100,7 +101,13 @@ export function LlmWorkbench({
 
     onMessagesChange(nextMessages);
     onLoadingChange(true);
-    onValidationErrorsChange([]);
+    onDiagnosticsChange({
+      rawLlmJson: '',
+      normalizedIr: null,
+      normalizationWarnings: [],
+      validationWarnings: [],
+      validationErrors: [],
+    });
     onStatusTextChange(
       connection.provider === 'openrouter' && connection.transport === 'browser'
         ? 'Отправляю описание в OpenRouter напрямую из браузера...'
@@ -124,18 +131,45 @@ export function LlmWorkbench({
       const assistantMessage = response.message;
       onMessagesChange([...nextMessages, assistantMessage]);
 
-      const parsedDraft = parseAndValidateDraft(assistantMessage.content);
-      onRawJsonChange(parsedDraft.rawJson);
+      const parsedDraft = parseProcessIrDraft(assistantMessage.content);
 
       if (!parsedDraft.success) {
-        onValidationErrorsChange(parsedDraft.errors);
-        onStatusTextChange('LLM ответила, но JSON процесса не прошёл валидацию.');
+        onDiagnosticsChange({
+          rawLlmJson: parsedDraft.rawJson,
+          normalizedIr: null,
+          normalizationWarnings: [],
+          validationWarnings: [],
+          validationErrors: parsedDraft.errors,
+        });
+        onStatusTextChange('LLM ответила, но draft Process IR не является валидным JSON.');
         return;
       }
 
-      const processDefinition = mapDraftToProcessDefinition(parsedDraft.value);
+      const normalized = normalizeProcessIrDraft(parsedDraft.value);
+      const validated = validateProcessIr(normalized.value);
+
+      onDiagnosticsChange({
+        rawLlmJson: parsedDraft.rawJson,
+        normalizedIr: normalized.value,
+        normalizationWarnings: normalized.warnings,
+        validationWarnings: validated.warnings,
+        validationErrors: validated.errors,
+      });
+
+      if (!validated.ok || !validated.value) {
+        onStatusTextChange('Draft Process IR нормализован, но не прошёл валидацию.');
+        return;
+      }
+
+      const processDefinition = mapProcessIrToDefinition(validated.value);
       onProcessGenerated(processDefinition);
-      onStatusTextChange(`Процесс "${processDefinition.title}" построен.`);
+
+      const warningCount = normalized.warnings.length + validated.warnings.length;
+      onStatusTextChange(
+        warningCount > 0
+          ? `Процесс "${processDefinition.title}" построен с ${warningCount} предупреждениями.`
+          : `Процесс "${processDefinition.title}" построен.`
+      );
     } catch (error) {
       onStatusTextChange(error instanceof Error ? error.message : 'Ошибка запроса к LLM');
     } finally {
@@ -150,7 +184,7 @@ export function LlmWorkbench({
           <p className="eyebrow">LLM Client</p>
           <h2>Chat</h2>
         </div>
-        <p className="supporting-text">Пайплайн первой итерации: chat -&gt; JSON -&gt; validate -&gt; dagre preview.</p>
+        <p className="supporting-text">Пайплайн второй итерации: chat -&gt; Process IR draft -&gt; normalize -&gt; validate -&gt; preview mapper.</p>
       </div>
 
       <details className="settings-box">
@@ -227,7 +261,7 @@ export function LlmWorkbench({
       </details>
 
       <div className="chat-log" aria-live="polite">
-        {messages.length === 0 && <p className="chat-placeholder">Здесь появятся сообщения чата и JSON-ответ модели.</p>}
+        {messages.length === 0 && <p className="chat-placeholder">Здесь появятся сообщения чата и raw JSON draft, который вернула модель.</p>}
         {messages.map((message, index) => (
           <article key={`${message.role}-${index}`} className={`chat-bubble chat-bubble--${message.role}`}>
             <div className="chat-bubble__meta">{message.role === 'user' ? 'User' : message.role === 'assistant' ? 'LLM' : 'System'}</div>
@@ -250,8 +284,13 @@ export function LlmWorkbench({
               className="toolbar-button toolbar-button--secondary"
               onClick={() => {
                 onMessagesChange([]);
-                onRawJsonChange('');
-                onValidationErrorsChange([]);
+                onDiagnosticsChange({
+                  rawLlmJson: '',
+                  normalizedIr: null,
+                  normalizationWarnings: [],
+                  validationWarnings: [],
+                  validationErrors: [],
+                });
                 onStatusTextChange('Чат очищен.');
               }}
               disabled={isLoading}
@@ -265,12 +304,34 @@ export function LlmWorkbench({
           <strong>Status:</strong> {statusText}
         </div>
 
-        {validationErrors.length > 0 && (
+        {diagnostics.validationErrors.length > 0 && (
           <div className="issues-box">
             <strong>Validation errors</strong>
             <ul>
-              {validationErrors.map((error) => (
+              {diagnostics.validationErrors.map((error) => (
                 <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {diagnostics.normalizationWarnings.length > 0 && (
+          <div className="issues-box">
+            <strong>Normalization warnings</strong>
+            <ul>
+              {diagnostics.normalizationWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {diagnostics.validationWarnings.length > 0 && (
+          <div className="issues-box">
+            <strong>Validation warnings</strong>
+            <ul>
+              {diagnostics.validationWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
               ))}
             </ul>
           </div>

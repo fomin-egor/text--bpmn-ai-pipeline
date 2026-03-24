@@ -1,13 +1,14 @@
 ﻿import { useMemo, useState } from 'react';
 import { LlmWorkbench } from './llm/LlmWorkbench';
+import type { ChatMessage, LlmConnectionConfig } from './llm/types';
 import { defaultProcessId, processCatalog } from './process-model/catalog';
 import type { ProcessDefinition } from './process-model/types';
+import type { ProcessIr } from './process-ir/types';
 import { ProcessFlow } from './react-flow/ProcessFlow';
-import type { ChatMessage, LlmConnectionConfig } from './llm/types';
 
 const GENERATED_PROCESS_ID = '__generated__';
 
-type SidebarTab = 'chat' | 'json';
+type SidebarTab = 'chat' | 'json' | 'diagnostics';
 
 const DEFAULT_CONNECTION: LlmConnectionConfig = {
   provider: 'openrouter',
@@ -17,17 +18,32 @@ const DEFAULT_CONNECTION: LlmConnectionConfig = {
   temperature: 0.2,
 };
 
+export interface ProcessDiagnosticsState {
+  rawLlmJson: string;
+  normalizedIr: ProcessIr | null;
+  normalizationWarnings: string[];
+  validationWarnings: string[];
+  validationErrors: string[];
+}
+
+const EMPTY_DIAGNOSTICS: ProcessDiagnosticsState = {
+  rawLlmJson: '',
+  normalizedIr: null,
+  normalizationWarnings: [],
+  validationWarnings: [],
+  validationErrors: [],
+};
+
 export default function App() {
   const [generatedProcess, setGeneratedProcess] = useState<ProcessDefinition | null>(null);
   const [selectedProcessId, setSelectedProcessId] = useState(defaultProcessId);
-  const [rawLlmJson, setRawLlmJson] = useState('');
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('chat');
   const [connection, setConnection] = useState<LlmConnectionConfig>(DEFAULT_CONNECTION);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('Опиши процесс онбординга нового сотрудника с HR, IT и руководителем.');
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [statusText, setStatusText] = useState('Готов к генерации процесса.');
   const [isLoading, setIsLoading] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<ProcessDiagnosticsState>(EMPTY_DIAGNOSTICS);
 
   const processOptions = useMemo(() => {
     const staticOptions = processCatalog.map((process) => ({
@@ -81,7 +97,7 @@ export default function App() {
               </select>
             </label>
             <p className="supporting-text">
-              Первая итерация: подключение к LLM, генерация JSON-процесса и построение графа текущим dagre-движком.
+              Вторая итерация: LLM генерирует draft Process IR, затем deterministic normalize/validate pipeline готовит preview model для dagre и React Flow.
             </p>
           </div>
         </div>
@@ -90,60 +106,109 @@ export default function App() {
 
       <aside className="sidebar-pane">
         <div className="sidebar-tabs" role="tablist" aria-label="Right panel tabs">
-          <button
-            className={`sidebar-tab ${activeSidebarTab === 'chat' ? 'is-active' : ''}`}
-            onClick={() => setActiveSidebarTab('chat')}
-            role="tab"
-            aria-selected={activeSidebarTab === 'chat'}
-          >
+          <button className={`sidebar-tab ${activeSidebarTab === 'chat' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('chat')} role="tab" aria-selected={activeSidebarTab === 'chat'}>
             Chat
           </button>
-          <button
-            className={`sidebar-tab ${activeSidebarTab === 'json' ? 'is-active' : ''}`}
-            onClick={() => setActiveSidebarTab('json')}
-            role="tab"
-            aria-selected={activeSidebarTab === 'json'}
-          >
+          <button className={`sidebar-tab ${activeSidebarTab === 'json' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('json')} role="tab" aria-selected={activeSidebarTab === 'json'}>
             Process JSON
+          </button>
+          <button className={`sidebar-tab ${activeSidebarTab === 'diagnostics' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('diagnostics')} role="tab" aria-selected={activeSidebarTab === 'diagnostics'}>
+            Diagnostics
           </button>
         </div>
 
         <div className="sidebar-tabpanel-wrap">
-          {activeSidebarTab === 'chat' ? (
+          {activeSidebarTab === 'chat' && (
             <section className="tool-pane tool-pane--chat" role="tabpanel" aria-label="Chat panel">
               <LlmWorkbench
                 connection={connection}
                 messages={messages}
                 input={input}
-                validationErrors={validationErrors}
                 statusText={statusText}
                 isLoading={isLoading}
+                diagnostics={diagnostics}
                 onConnectionChange={setConnection}
                 onMessagesChange={setMessages}
                 onInputChange={setInput}
-                onValidationErrorsChange={setValidationErrors}
                 onStatusTextChange={setStatusText}
                 onLoadingChange={setIsLoading}
+                onDiagnosticsChange={setDiagnostics}
                 onProcessGenerated={handleProcessGenerated}
-                onRawJsonChange={setRawLlmJson}
               />
             </section>
-          ) : (
+          )}
+
+          {activeSidebarTab === 'json' && (
             <section className="tool-pane tool-pane--json" role="tabpanel" aria-label="Process JSON panel">
               <div className="tool-pane__header">
                 <div>
-                  <p className="eyebrow">Process Model</p>
-                  <h2>JSON</h2>
+                  <p className="eyebrow">Preview Model</p>
+                  <h2>Process JSON</h2>
                 </div>
-                <p className="supporting-text">Текущая preview-модель, которая подаётся в dagre и React Flow.</p>
+                <p className="supporting-text">Текущая preview-model, которая подаётся в dagre и React Flow после mapper-а из валидного Process IR.</p>
               </div>
-              {rawLlmJson && (
-                <details className="raw-json-box raw-json-box--pane">
-                  <summary>Raw LLM JSON</summary>
-                  <pre>{rawLlmJson}</pre>
-                </details>
-              )}
               <pre className="json-view">{JSON.stringify(selectedProcess, null, 2)}</pre>
+            </section>
+          )}
+
+          {activeSidebarTab === 'diagnostics' && (
+            <section className="tool-pane tool-pane--json" role="tabpanel" aria-label="Diagnostics panel">
+              <div className="tool-pane__header">
+                <div>
+                  <p className="eyebrow">Diagnostics</p>
+                  <h2>IR Pipeline</h2>
+                </div>
+                <p className="supporting-text">Raw LLM JSON, normalized Process IR и сообщения normalize/validate pipeline.</p>
+              </div>
+
+              <div className="diagnostics-view">
+                {diagnostics.validationErrors.length > 0 && (
+                  <div className="issues-box issues-box--pane">
+                    <strong>Validation errors</strong>
+                    <ul>
+                      {diagnostics.validationErrors.map((error) => (
+                        <li key={error}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {diagnostics.normalizationWarnings.length > 0 && (
+                  <div className="issues-box issues-box--pane">
+                    <strong>Normalization warnings</strong>
+                    <ul>
+                      {diagnostics.normalizationWarnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {diagnostics.validationWarnings.length > 0 && (
+                  <div className="issues-box issues-box--pane">
+                    <strong>Validation warnings</strong>
+                    <ul>
+                      {diagnostics.validationWarnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {diagnostics.rawLlmJson && (
+                  <details className="raw-json-box raw-json-box--pane" open>
+                    <summary>Raw LLM JSON</summary>
+                    <pre>{diagnostics.rawLlmJson}</pre>
+                  </details>
+                )}
+
+                {diagnostics.normalizedIr && (
+                  <details className="raw-json-box raw-json-box--pane" open>
+                    <summary>Normalized Process IR</summary>
+                    <pre>{JSON.stringify(diagnostics.normalizedIr, null, 2)}</pre>
+                  </details>
+                )}
+              </div>
             </section>
           )}
         </div>
