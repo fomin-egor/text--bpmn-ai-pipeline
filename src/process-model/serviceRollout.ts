@@ -1,8 +1,5 @@
 import type { ProcessDefinition } from './types';
-
-const TASK_SIZE = { width: 100, height: 80 };
-const EVENT_SIZE = { width: 36, height: 36 };
-const GATEWAY_SIZE = { width: 50, height: 50 };
+import { EVENT_SIZE, GATEWAY_SIZE, TASK_SIZE } from './nodeSizes';
 
 export const serviceRolloutProcess: ProcessDefinition = {
   id: 'service_rollout',

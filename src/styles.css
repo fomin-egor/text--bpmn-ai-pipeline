@@ -21,23 +21,27 @@ html,
 body,
 #root {
   margin: 0;
+  height: 100%;
   min-height: 100vh;
 }
 
 body {
   min-width: 320px;
+  overflow: hidden;
 }
 
-button {
+button,
+select {
   font: inherit;
 }
 
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.9fr);
-  min-height: 100vh;
+  height: 100vh;
   gap: 18px;
   padding: 18px;
+  overflow: hidden;
 }
 
 .workspace-pane,
@@ -57,8 +61,8 @@ button {
 }
 
 .json-pane {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -89,6 +93,36 @@ button {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.process-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 280px;
+}
+
+.process-picker__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b5b32;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.process-picker select {
+  border: 1px solid rgba(49, 68, 79, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 253, 247, 0.96);
+  padding: 10px 12px;
+  color: #1a2833;
 }
 
 .supporting-text {
@@ -311,6 +345,8 @@ button {
 }
 
 .json-view {
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
   padding: 20px 24px 24px;
   overflow: auto;
@@ -322,15 +358,22 @@ button {
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
+    height: 100vh;
   }
 
   .workspace-pane {
     min-height: 68vh;
   }
 
-  .pane-header {
+  .pane-header,
+  .header-actions {
     flex-direction: column;
     align-items: start;
+  }
+
+  .process-picker {
+    min-width: 0;
+    width: 100%;
   }
 
   .supporting-text {
