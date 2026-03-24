@@ -20,10 +20,30 @@ export interface LayoutMetrics {
   }>;
 }
 
+export interface DiagramBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface DiagramPoint {
+  x: number;
+  y: number;
+}
+
+export interface DiagramLayoutData {
+  poolBounds: DiagramBounds;
+  laneBounds: Record<string, DiagramBounds>;
+  nodeBounds: Record<string, DiagramBounds>;
+  edgeWaypoints: Record<string, DiagramPoint[]>;
+}
+
 export interface LayoutResult {
   nodes: Node[];
   edges: Edge[];
   metrics: LayoutMetrics;
+  diagram: DiagramLayoutData;
 }
 
 const DEFAULT_NODE_TYPE = 'bpmnNode';
@@ -37,6 +57,17 @@ const CONTENT_PADDING_X = 120;
 const CONTENT_PADDING_Y = 28;
 
 const getLaneTop = (laneIndex: number) => HEADER_HEIGHT + CONTENT_PADDING_Y + laneIndex * (LANE_HEIGHT + LANE_GAP);
+
+function stripConsecutiveDuplicatePoints(points: DiagramPoint[]) {
+  return points.filter((point, index) => {
+    if (index === 0) {
+      return true;
+    }
+
+    const previousPoint = points[index - 1];
+    return previousPoint.x !== point.x || previousPoint.y !== point.y;
+  });
+}
 
 export function applyDagreLayout(process: ProcessDefinition): LayoutResult {
   const graph = new dagre.graphlib.Graph();
@@ -112,6 +143,12 @@ export function applyDagreLayout(process: ProcessDefinition): LayoutResult {
   const maxNodeRight = Math.max(...positionedNodes.map((node) => node.position.x + (node.width ?? 0)));
   const graphWidth = maxNodeRight + CONTENT_PADDING_X;
   const graphHeight = laneOffsets.at(-1)?.bottom ? laneOffsets[laneOffsets.length - 1].bottom + CONTENT_PADDING_Y : 0;
+  const poolBounds: DiagramBounds = {
+    x: 0,
+    y: 0,
+    width: graphWidth,
+    height: graphHeight,
+  };
 
   const positionedEdges: Edge[] = process.edges.map((edge) => ({
     id: edge.id,
@@ -145,6 +182,76 @@ export function applyDagreLayout(process: ProcessDefinition): LayoutResult {
     },
   }));
 
+  const nodeBounds = Object.fromEntries(
+    positionedNodes.map((node) => [
+      node.id,
+      {
+        x: node.position.x,
+        y: node.position.y,
+        width: node.width ?? 0,
+        height: node.height ?? 0,
+      } satisfies DiagramBounds,
+    ]),
+  );
+
+  const laneBounds = Object.fromEntries(
+    laneOffsets.map((laneOffset) => [
+      laneOffset.lane.id,
+      {
+        x: 0,
+        y: laneOffset.top,
+        width: graphWidth,
+        height: LANE_HEIGHT,
+      } satisfies DiagramBounds,
+    ]),
+  );
+
+  const backwardEdges = process.edges.filter((edge) => edge.kind === 'backward');
+  const edgeWaypoints = Object.fromEntries(
+    process.edges.map((edge) => {
+      const sourceBounds = nodeBounds[edge.source];
+      const targetBounds = nodeBounds[edge.target];
+
+      if (!sourceBounds || !targetBounds) {
+        return [edge.id, [] satisfies DiagramPoint[]];
+      }
+
+      const startPoint = {
+        x: sourceBounds.x + sourceBounds.width,
+        y: sourceBounds.y + sourceBounds.height / 2,
+      };
+      const endPoint = {
+        x: targetBounds.x,
+        y: targetBounds.y + targetBounds.height / 2,
+      };
+
+      if (edge.kind === 'backward') {
+        const backwardIndex = backwardEdges.findIndex((candidate) => candidate.id === edge.id);
+        const routeTop = Math.max(24, Math.min(startPoint.y, endPoint.y) - 72 - backwardIndex * 24);
+        const points = stripConsecutiveDuplicatePoints([
+          startPoint,
+          { x: startPoint.x + 36, y: startPoint.y },
+          { x: startPoint.x + 36, y: routeTop },
+          { x: endPoint.x - 36, y: routeTop },
+          { x: endPoint.x - 36, y: endPoint.y },
+          endPoint,
+        ]);
+
+        return [edge.id, points];
+      }
+
+      const middleX = startPoint.x + (endPoint.x - startPoint.x) / 2;
+      const points = stripConsecutiveDuplicatePoints([
+        startPoint,
+        { x: middleX, y: startPoint.y },
+        { x: middleX, y: endPoint.y },
+        endPoint,
+      ]);
+
+      return [edge.id, points];
+    }),
+  );
+
   return {
     nodes: positionedNodes,
     edges: positionedEdges,
@@ -156,6 +263,12 @@ export function applyDagreLayout(process: ProcessDefinition): LayoutResult {
       graphWidth,
       graphHeight,
       laneOffsets,
+    },
+    diagram: {
+      poolBounds,
+      laneBounds,
+      nodeBounds,
+      edgeWaypoints,
     },
   };
 }

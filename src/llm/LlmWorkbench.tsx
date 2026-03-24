@@ -1,4 +1,4 @@
-﻿import type { ProcessDefinition } from '../process-model/types';
+import type { ProcessDefinition } from '../process-model/types';
 import { mapProcessIrToDefinition } from '../process-ir/mapProcessIrToDefinition';
 import { normalizeProcessIrDraft } from '../process-ir/normalizeProcessIr';
 import { parseProcessIrDraft } from '../process-ir/parseDraft';
@@ -29,7 +29,7 @@ interface LlmWorkbenchProps {
   onStatusTextChange: (status: string) => void;
   onLoadingChange: (value: boolean) => void;
   onDiagnosticsChange: (diagnostics: ProcessDiagnosticsState) => void;
-  onProcessGenerated: (process: ProcessDefinition) => void;
+  onProcessGenerated: (process: ProcessDefinition, processIr: ProcessIr) => void;
 }
 
 export function LlmWorkbench({
@@ -162,7 +162,7 @@ export function LlmWorkbench({
       }
 
       const processDefinition = mapProcessIrToDefinition(validated.value);
-      onProcessGenerated(processDefinition);
+      onProcessGenerated(processDefinition, validated.value);
 
       const warningCount = normalized.warnings.length + validated.warnings.length;
       onStatusTextChange(

@@ -1,13 +1,14 @@
-﻿# План итераций
+# План итераций
 
 ## Принципы разбиения
 Каждая итерация должна давать рабочий вертикальный срез, а не набор разрозненных модулей.
 
 Порядок приоритетов:
 - сначала end-to-end путь
-- потом устойчивость
+- потом устойчивость модели и pipeline
 - потом BPMN XML export
-- потом UX и развитие layout
+- потом выравнивание layout с ожидаемым Camunda output
+- потом UX и развитие layout engine
 
 ## Итерация 1. LLM Playground
 ### Цель
@@ -25,7 +26,7 @@
 - отдельная вкладка с process JSON справа
 
 ### Фактический результат
-Итерация уже реализована в текущем прототипе.
+Итерация реализована.
 
 Сделано:
 - chat UI и настройки подключения
@@ -58,36 +59,71 @@
 - сделать mapping `ProcessIR -> layout view model`
 - переключить LLM output contract с ad hoc JSON на Process IR
 
-### Результат
-Система работает уже не от произвольного draft JSON, а от стабильного внутреннего контракта.
+### Фактический результат
+Итерация реализована.
 
-### Артефакты
+Сделано:
 - типы Process IR
-- validation rules
-- normalization rules
-- mapping layer из IR в layout input
+- deterministic pipeline `parse -> normalize -> validate -> preview mapper`
+- diagnostics UI для raw JSON, normalized IR, warnings и errors
+- mapping `ProcessIR -> ProcessDefinition`
+- единый внутренний контракт между LLM, preview и следующими слоями
+
+### Критерии завершения
+- LLM отдаёт draft Process IR
+- normalizer и validator работают детерминированно
+- UI показывает normalized IR и diagnostics
+- preview строится уже не напрямую из raw draft, а из валидного IR
 
 ## Итерация 3. BPMN Export MVP
 ### Цель
 Научиться экспортировать `.bpmn`, который открывается в Camunda.
 
 ### Scope
-- подключить `bpmn-moddle`
 - semantic mapping `ProcessIR -> BPMN`
 - DI mapping `layout result -> BPMN DI`
+- XML serializer
+- просмотр BPMN XML в UI
 - export action из UI
-- smoke validation через повторный import
+- smoke validation через открытие в Camunda
+
+### Фактический результат
+Итерация реализована.
+
+Сделано:
+- deterministic BPMN export из `ProcessIR + layout result`
+- BPMN XML tab в UI
+- download action `.bpmn`
+- экспорт открывается в Camunda
+- layout result расширен bounds и waypoints для BPMN DI
+
+### Критерии завершения
+- пользователь может выгрузить BPMN XML из построенного процесса
+- XML открывается в Camunda
+- XML доступен для просмотра в UI
+
+## Итерация 4. Layout Polish и Camunda Alignment
+### Цель
+Довести автолейаут и BPMN DI до более аккуратного визуального результата, который ближе к ожидаемому отображению в Camunda.
+
+### Scope
+- поправить координаты pool
+- сделать lanes вплотную друг к другу без лишних зазоров
+- скорректировать routing возвратных веток так, чтобы они шли как аккуратный мостик
+- увеличить зазоры между tasks, gateways и events
+- уменьшить расхождения между preview в прототипе и тем, что видно после открытия `.bpmn` в Camunda
+- проверить несколько эталонных схем и скорректировать layout constants
 
 ### Результат
-Пользователь может выгрузить BPMN XML из построенного процесса.
+Экспорт остаётся детерминированным, но визуальное качество схемы заметно улучшается и становится ближе к ожидаемому BPMN-результату.
 
 ### Артефакты
-- export service
-- XML serializer
-- download action
-- checklist совместимости с Camunda
+- уточнённый layout contract
+- улучшенные waypoints для backward branches
+- доработанные pool/lane bounds
+- набор визуальных кейсов для сверки с Camunda
 
-## Итерация 4. Устойчивость и UX
+## Итерация 5. Устойчивость и UX
 ### Цель
 Сделать прототип удобным для повторяемого реального тестирования.
 
@@ -103,11 +139,11 @@
 Прототип становится рабочим исследовательским инструментом, а не одноразовой демо-сборкой.
 
 ### Артефакты
-- diagnostics UI
+- diagnostics UI v2
 - session persistence
 - richer validation messages
 
-## Итерация 5. Layout Engine v2
+## Итерация 6. Layout Engine v2
 ### Цель
 Снизить зависимость от ограничений dagre.
 
@@ -132,10 +168,12 @@ Layout можно развивать без переписывания chat, IR 
 3. Итерация 3
 4. Итерация 4
 5. Итерация 5
+6. Итерация 6
 
 ## Почему именно так
 - Итерация 1 даёт первый end-to-end MVP.
 - Итерация 2 не даёт архитектуре расползтись до старта XML export.
 - Итерация 3 даёт главный продуктовый результат: `.bpmn` файл.
-- Итерация 4 повышает пригодность прототипа для исследования и тестов.
-- Итерация 5 улучшает качество layout, не блокируя основной pipeline.
+- Итерация 4 улучшает визуальное качество layout и выравнивает экспорт с тем, что ожидается увидеть в Camunda.
+- Итерация 5 повышает пригодность прототипа для длительного исследования и повторяемых тестов.
+- Итерация 6 позволяет развивать сам layout engine без переписывания pipeline.

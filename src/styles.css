@@ -644,3 +644,41 @@ textarea {
     max-width: none;
   }
 }
+.header-actions--compact {
+  max-width: 320px;
+}
+
+.json-view--embedded {
+  padding: 0;
+}
+
+.sidebar-tabs {
+  flex-wrap: wrap;
+}
+
+.tool-pane__header > * {
+  min-width: 0;
+}
+
+.tool-pane__header--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.tool-pane__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tool-pane__actions .supporting-text {
+  flex: 1 1 260px;
+  max-width: none;
+}
+
+.json-view {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

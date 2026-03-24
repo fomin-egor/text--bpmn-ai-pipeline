@@ -1,14 +1,17 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { buildBpmnExport } from './bpmn-export/buildBpmnExport';
+import { applyDagreLayout } from './layout/applyDagreLayout';
 import { LlmWorkbench } from './llm/LlmWorkbench';
 import type { ChatMessage, LlmConnectionConfig } from './llm/types';
 import { defaultProcessId, processCatalog } from './process-model/catalog';
 import type { ProcessDefinition } from './process-model/types';
+import { mapDefinitionToProcessIr } from './process-ir/mapDefinitionToProcessIr';
 import type { ProcessIr } from './process-ir/types';
 import { ProcessFlow } from './react-flow/ProcessFlow';
 
 const GENERATED_PROCESS_ID = '__generated__';
 
-type SidebarTab = 'chat' | 'json' | 'diagnostics';
+type SidebarTab = 'chat' | 'json' | 'diagnostics' | 'xml';
 
 const DEFAULT_CONNECTION: LlmConnectionConfig = {
   provider: 'openrouter',
@@ -36,6 +39,7 @@ const EMPTY_DIAGNOSTICS: ProcessDiagnosticsState = {
 
 export default function App() {
   const [generatedProcess, setGeneratedProcess] = useState<ProcessDefinition | null>(null);
+  const [generatedProcessIr, setGeneratedProcessIr] = useState<ProcessIr | null>(null);
   const [selectedProcessId, setSelectedProcessId] = useState(defaultProcessId);
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('chat');
   const [connection, setConnection] = useState<LlmConnectionConfig>(DEFAULT_CONNECTION);
@@ -50,9 +54,10 @@ export default function App() {
       id: process.id,
       title: process.title,
       process,
+      processIr: mapDefinitionToProcessIr(process),
     }));
 
-    if (!generatedProcess) {
+    if (!generatedProcess || !generatedProcessIr) {
       return staticOptions;
     }
 
@@ -61,20 +66,57 @@ export default function App() {
         id: GENERATED_PROCESS_ID,
         title: `LLM: ${generatedProcess.title}`,
         process: generatedProcess,
+        processIr: generatedProcessIr,
       },
       ...staticOptions,
     ];
-  }, [generatedProcess]);
+  }, [generatedProcess, generatedProcessIr]);
 
-  const selectedProcess = useMemo(
-    () => processOptions.find((option) => option.id === selectedProcessId)?.process ?? processOptions[0].process,
+  const selectedProcessOption = useMemo(
+    () => processOptions.find((option) => option.id === selectedProcessId) ?? processOptions[0],
     [processOptions, selectedProcessId],
   );
 
-  const handleProcessGenerated = (process: ProcessDefinition) => {
+  const selectedProcess = selectedProcessOption.process;
+  const selectedProcessIr = selectedProcessOption.processIr;
+  const selectedLayout = useMemo(() => applyDagreLayout(selectedProcess), [selectedProcess]);
+
+  const bpmnExport = useMemo(() => {
+    try {
+      return {
+        ...buildBpmnExport(selectedProcessIr, selectedLayout),
+        error: null as string | null,
+      };
+    } catch (error) {
+      return {
+        fileName: `${selectedProcess.id}.bpmn`,
+        xml: '',
+        error: error instanceof Error ? error.message : 'Не удалось собрать BPMN XML.',
+      };
+    }
+  }, [selectedLayout, selectedProcess.id, selectedProcessIr]);
+
+  const handleProcessGenerated = (process: ProcessDefinition, processIr: ProcessIr) => {
     setGeneratedProcess(process);
+    setGeneratedProcessIr(processIr);
     setSelectedProcessId(GENERATED_PROCESS_ID);
     setActiveSidebarTab('json');
+  };
+
+  const handleDownloadBpmn = () => {
+    if (!bpmnExport.xml) {
+      return;
+    }
+
+    const blob = new Blob([bpmnExport.xml], { type: 'application/xml;charset=utf-8' });
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = bpmnExport.fileName;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
   };
 
   return (
@@ -97,11 +139,11 @@ export default function App() {
               </select>
             </label>
             <p className="supporting-text">
-              Вторая итерация: LLM генерирует draft Process IR, затем deterministic normalize/validate pipeline готовит preview model для dagre и React Flow.
+              Третья итерация: валидный Process IR и layout result используются и для preview, и для deterministic BPMN XML export.
             </p>
           </div>
         </div>
-        <ProcessFlow key={selectedProcess.id} process={selectedProcess} />
+        <ProcessFlow key={selectedProcess.id} process={selectedProcess} initialLayout={selectedLayout} />
       </section>
 
       <aside className="sidebar-pane">
@@ -114,6 +156,9 @@ export default function App() {
           </button>
           <button className={`sidebar-tab ${activeSidebarTab === 'diagnostics' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('diagnostics')} role="tab" aria-selected={activeSidebarTab === 'diagnostics'}>
             Diagnostics
+          </button>
+          <button className={`sidebar-tab ${activeSidebarTab === 'xml' ? 'is-active' : ''}`} onClick={() => setActiveSidebarTab('xml')} role="tab" aria-selected={activeSidebarTab === 'xml'}>
+            BPMN XML
           </button>
         </div>
 
@@ -207,6 +252,41 @@ export default function App() {
                     <summary>Normalized Process IR</summary>
                     <pre>{JSON.stringify(diagnostics.normalizedIr, null, 2)}</pre>
                   </details>
+                )}
+              </div>
+            </section>
+          )}
+
+          {activeSidebarTab === 'xml' && (
+            <section className="tool-pane tool-pane--json" role="tabpanel" aria-label="BPMN XML panel">
+              <div className="tool-pane__header tool-pane__header--stacked">
+                <div>
+                  <p className="eyebrow">BPMN Export</p>
+                  <h2>BPMN XML</h2>
+                </div>
+                <div className="tool-pane__actions">
+                  <p className="supporting-text">Итоговый `.bpmn`, детерминированно собранный из текущего Process IR и layout result.</p>
+                  <button className="toolbar-button" onClick={handleDownloadBpmn} disabled={!bpmnExport.xml}>
+                    Download .bpmn
+                  </button>
+                </div>
+              </div>
+
+              <div className="diagnostics-view">
+                <div className="status-box">
+                  <strong>Status:</strong>{' '}
+                  {bpmnExport.error ? `Ошибка export pipeline: ${bpmnExport.error}` : `XML синхронизирован с процессом "${selectedProcess.title}".`}
+                </div>
+
+                {bpmnExport.error ? (
+                  <div className="issues-box issues-box--pane">
+                    <strong>Export error</strong>
+                    <ul>
+                      <li>{bpmnExport.error}</li>
+                    </ul>
+                  </div>
+                ) : (
+                  <pre className="json-view json-view--embedded">{bpmnExport.xml}</pre>
                 )}
               </div>
             </section>

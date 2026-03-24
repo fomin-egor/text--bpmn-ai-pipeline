@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -11,7 +11,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { applyDagreLayout } from '../layout/applyDagreLayout';
-import type { LayoutMetrics } from '../layout/applyDagreLayout';
+import type { LayoutMetrics, LayoutResult } from '../layout/applyDagreLayout';
 import type { ProcessDefinition } from '../process-model/types';
 import { BpmnNode } from './BpmnNode';
 import { LaneBackground } from './LaneBackground';
@@ -30,10 +30,10 @@ const defaultEdgeOptions = Object.freeze({
 
 interface ProcessFlowCanvasProps {
   process: ProcessDefinition;
+  initialLayout: LayoutResult;
 }
 
-function ProcessFlowCanvas({ process }: ProcessFlowCanvasProps) {
-  const initialLayout = useMemo(() => applyDagreLayout(process), [process]);
+function ProcessFlowCanvas({ process, initialLayout }: ProcessFlowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialLayout.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialLayout.edges);
   const [layoutMetrics, setLayoutMetrics] = useState<LayoutMetrics>(initialLayout.metrics);
