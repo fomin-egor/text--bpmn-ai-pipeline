@@ -1,4 +1,4 @@
-﻿# Спецификация Process IR
+# Спецификация Process IR
 
 ## Назначение
 Process IR — это промежуточное представление между LLM-слоем и детерминированными инженерными слоями.
@@ -89,7 +89,7 @@ export interface ProcessNodeIR {
   id: string;
   type: ProcessNodeType;
   label: string;
-  laneId: string;
+  laneId?: string;
   bpmnType?: string;
   system?: string;
   gatewayRole?: 'split' | 'join' | 'decision';
@@ -101,11 +101,23 @@ export interface ProcessNodeIR {
 - `id`: уникальный идентификатор узла
 - `type`: BPMN-light тип узла в рамках MVP
 - `label`: отображаемая подпись узла
-- `laneId`: принадлежность узла к lane
+- `laneId`: lane-привязка, обязательная для task-like узлов и необязательная для events/gateways
 - `bpmnType`: необязательное уточнение BPMN semantics на будущее
 - `system`: внешняя система или контекст выполнения
 - `gatewayRole`: семантическая роль gateway
 - `metadata`: расширяемый контейнер для будущих структурированных данных
+
+### Новое правило по `laneId`
+Начиная с актуальной модели layout:
+- `task` обязан иметь `laneId`
+- `startEvent`, `endEvent`, `exclusiveGateway`, `parallelGateway` могут не иметь `laneId`
+
+Смысл этого изменения:
+- task интерпретируется как activity конкретного исполнителя
+- event и gateway не должны быть жёстко привязаны к lane для целей layout
+- их положение по `y` должно в большей степени определяться базовым layout-графом, а не искусственным snap-to-lane-center
+
+`laneId` у event/gateway можно сохранять как мягкую семантическую подсказку, но layout не должен считать его жёстким контейнерным ограничением.
 
 ## `edges`
 ```ts
@@ -128,6 +140,14 @@ export interface ProcessEdgeIR {
 - `kind`: семантика направления для layout
 - `condition`: условие перехода
 - `isDefault`: признак default flow для gateway
+
+### Семантика `kind`
+- `forward` участвует в rank/column structure основного потока
+- `backward` обозначает возвратный переход, который не должен ломать основной left-to-right flow
+
+Важно:
+- `kind = backward` не означает фиксированную форму линии
+- конкретный маршрут backward edge должен выбираться layout-слоем эвристически, с целью уменьшения пересечений и числа изломов
 
 ## `warnings`
 ```ts
@@ -156,7 +176,8 @@ export interface ProcessWarning {
 ### По nodes
 - node ids уникальны
 - каждый node имеет допустимый `type`
-- каждый node принадлежит существующему lane
+- каждый `task` принадлежит существующему lane
+- `event/gateway` могут не иметь lane-привязки
 
 ### По edges
 - edge ids уникальны
@@ -185,6 +206,13 @@ export interface ProcessWarning {
 - normalizer приводит LLM output к `ProcessIR`
 - layout mapper преобразует `ProcessIR -> ProcessDefinition`
 - BPMN export работает из `ProcessIR + layout result`
+- `laneId` перестаёт быть универсальным геометрическим ограничением для всех типов узлов
+
+## Новые следствия для layout
+Из обновлённой модели следует:
+- lane-bound placement нужен только для task-like узлов
+- event/gateway должны получать `preferredY` от dagre и не должны принудительно привязываться к центру lane
+- высота lane должна рассчитываться адаптивно по фактическому содержимому, а не только по фиксированной константе
 
 ## Пример Process IR
 ```json
@@ -201,13 +229,15 @@ export interface ProcessWarning {
     { "id": "devops", "label": "DevOps-инженер", "order": 1 }
   ],
   "nodes": [
-    { "id": "start", "type": "startEvent", "label": "Start", "laneId": "manager" },
+    { "id": "start", "type": "startEvent", "label": "Start" },
     { "id": "create_ticket", "type": "task", "label": "Создать задачу", "laneId": "manager", "system": "Jira" },
+    { "id": "review_split", "type": "parallelGateway", "label": "Параллельная проверка", "gatewayRole": "split" },
     { "id": "configure_env", "type": "task", "label": "Настроить окружение", "laneId": "devops", "system": "Ansible" }
   ],
   "edges": [
     { "id": "e1", "source": "start", "target": "create_ticket", "kind": "forward" },
-    { "id": "e2", "source": "create_ticket", "target": "configure_env", "kind": "forward" }
+    { "id": "e2", "source": "create_ticket", "target": "review_split", "kind": "forward" },
+    { "id": "e3", "source": "review_split", "target": "configure_env", "kind": "forward" }
   ]
 }
 ```

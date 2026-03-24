@@ -1,4 +1,4 @@
-﻿import { EVENT_SIZE, GATEWAY_SIZE, TASK_SIZE } from '../process-model/nodeSizes';
+import { EVENT_SIZE, GATEWAY_SIZE, TASK_SIZE } from '../process-model/nodeSizes';
 import type { ProcessDefinition } from '../process-model/types';
 import type { ProcessIr, ProcessIrNodeType } from './types';
 

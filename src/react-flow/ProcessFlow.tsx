@@ -15,9 +15,14 @@ import type { LayoutMetrics, LayoutResult } from '../layout/applyDagreLayout';
 import type { ProcessDefinition } from '../process-model/types';
 import { BpmnNode } from './BpmnNode';
 import { LaneBackground } from './LaneBackground';
+import { WaypointsEdge } from './WaypointsEdge';
 
 const nodeTypes = Object.freeze({
   bpmnNode: BpmnNode,
+});
+
+const edgeTypes = Object.freeze({
+  waypoints: WaypointsEdge,
 });
 
 const fitViewOptions = Object.freeze({
@@ -52,6 +57,7 @@ function ProcessFlowCanvas({ process, initialLayout }: ProcessFlowCanvasProps) {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         fitViewOptions={fitViewOptions}

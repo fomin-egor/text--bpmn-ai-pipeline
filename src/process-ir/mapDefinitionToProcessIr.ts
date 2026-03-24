@@ -19,7 +19,7 @@ export function mapDefinitionToProcessIr(process: ProcessDefinition): ProcessIr 
       id: node.id,
       type: node.type,
       label: node.label,
-      laneId: node.lane,
+      laneId: node.lane || undefined,
     })),
     edges: process.edges.map((edge) => ({
       id: edge.id,

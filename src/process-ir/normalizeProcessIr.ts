@@ -1,5 +1,7 @@
 import type { NormalizationResult, ProcessEdgeIr, ProcessIr, ProcessIrEdgeKind, ProcessIrNodeType } from './types';
 
+const TASK_LIKE_TYPES = new Set<ProcessIrNodeType>(['task']);
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
@@ -105,13 +107,19 @@ export function normalizeProcessIrDraft(input: unknown): NormalizationResult {
 
     nodeIdMap.set(originalId || normalizedId.value, normalizedId.value);
 
-    const rawLaneId = cleanString(nodeRecord.laneId ?? nodeRecord.lane);
-    const laneId = laneIdMap.get(rawLaneId) ?? rawLaneId;
     const rawType = nodeRecord.type;
     const type = normalizeNodeType(rawType);
 
     if (rawType !== type) {
       warnings.push(`node ${normalizedId.value} received unsupported type and was normalized to task`);
+    }
+
+    const rawLaneId = cleanString(nodeRecord.laneId ?? nodeRecord.lane);
+    const normalizedLaneId = rawLaneId ? laneIdMap.get(rawLaneId) ?? rawLaneId : undefined;
+    const laneId = TASK_LIKE_TYPES.has(type) ? normalizedLaneId : normalizedLaneId || undefined;
+
+    if (TASK_LIKE_TYPES.has(type) && !laneId) {
+      warnings.push(`task ${normalizedId.value} has no laneId after normalization`);
     }
 
     return {

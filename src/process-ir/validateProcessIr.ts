@@ -1,6 +1,7 @@
-﻿import type { ProcessIr, ValidationResult } from './types';
+import type { ProcessIr, ProcessIrNodeType, ValidationResult } from './types';
 
-const ALLOWED_NODE_TYPES = new Set(['startEvent', 'endEvent', 'task', 'exclusiveGateway', 'parallelGateway']);
+const ALLOWED_NODE_TYPES = new Set<ProcessIrNodeType>(['startEvent', 'endEvent', 'task', 'exclusiveGateway', 'parallelGateway']);
+const TASK_LIKE_TYPES = new Set<ProcessIrNodeType>(['task']);
 
 export function validateProcessIr(value: ProcessIr): ValidationResult {
   const errors: string[] = [];
@@ -79,8 +80,14 @@ export function validateProcessIr(value: ProcessIr): ValidationResult {
       errors.push(`node ${node.id} must have label`);
     }
 
-    if (!laneIds.has(node.laneId)) {
-      errors.push(`node ${node.id} references unknown lane ${node.laneId || '<empty>'}`);
+    if (TASK_LIKE_TYPES.has(node.type)) {
+      if (!node.laneId?.trim()) {
+        errors.push(`task ${node.id} must have laneId`);
+      } else if (!laneIds.has(node.laneId)) {
+        errors.push(`node ${node.id} references unknown lane ${node.laneId}`);
+      }
+    } else if (node.laneId && !laneIds.has(node.laneId)) {
+      errors.push(`node ${node.id} references unknown lane ${node.laneId}`);
     }
 
     if ((node.type === 'exclusiveGateway' || node.type === 'parallelGateway') && !node.gatewayRole) {

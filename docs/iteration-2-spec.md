@@ -1,4 +1,4 @@
-﻿# Краткая спецификация итерации 2
+# Краткая спецификация итерации 2
 
 ## Название
 Итерация 2: введение `Process IR`
@@ -43,6 +43,15 @@
 - `ProcessEdgeIr`
 - `ProcessWarning`
 - результаты parse / normalize / validate
+
+## Актуальная целевая эволюция Process IR
+Поверх уже реализованной итерации 2 принято следующее развитие модели:
+- `laneId` перестаёт быть обязательным для всех узлов
+- `task` остаётся lane-bound
+- `startEvent`, `endEvent`, `exclusiveGateway`, `parallelGateway` становятся lane-agnostic для целей layout
+- backward edges сохраняются как `kind: backward`, но их геометрия должна определяться не жёстким шаблоном, а более умным router-слоем
+
+Это изменение не отменяет итерацию 2, а уточняет её как основу для следующей эволюции layout.
 
 ### Parse draft
 Файл: `src/process-ir/parseDraft.ts`
@@ -119,6 +128,12 @@
 Дополнительно:
 - строится `nodeIdMap`, чтобы edges могли ссылаться на уже нормализованные ids
 
+#### Актуальное уточнение по `laneId`
+Текущее реализованное правило normalizer всё ещё подхватывает `laneId` почти для всех узлов, но целевая спецификация меняется:
+- `laneId` должен оставаться обязательным только для task-like узлов
+- у `event/gateway` normalizer не должен принудительно подставлять или сохранять lane как жёсткое layout-ограничение
+- для `event/gateway` `laneId` допускается как soft metadata
+
 #### Нормализация edges
 Для каждого edge:
 - `id` нормализуется
@@ -170,10 +185,16 @@
 - `node.id` должен быть уникальным
 - `node.type` должен входить в допустимое множество
 - `node.label` обязателен
-- `node.laneId` должен ссылаться на существующий lane
+- в текущей реализации `node.laneId` должен ссылаться на существующий lane
 
 Дополнительный warning:
 - если node является `exclusiveGateway` или `parallelGateway`, но у него нет `gatewayRole`, validator пишет warning
+
+#### Актуальное уточнение по validator
+Целевая спецификация валидатора меняется так:
+- `task` обязан иметь `laneId`
+- `startEvent`, `endEvent`, `exclusiveGateway`, `parallelGateway` могут не иметь `laneId`
+- проверка существования `laneId` остаётся только для тех узлов, у которых `laneId` действительно задан
 
 #### Проверки структуры start/end
 Ошибки, если:
@@ -202,6 +223,12 @@
 - назначает размеры узлов по типу
 - оставляет preview model пригодной для текущего dagre и React Flow renderer
 
+## Актуальное уточнение по preview mapper
+Текущий mapper всё ещё делает жёсткую lane-привязку для всех узлов, но целевая модель меняется:
+- task должны оставаться lane-bound
+- event/gateway не должны насильно снапиться к центру lane
+- preview layer должен уметь использовать `preferredY` от dagre для lane-agnostic элементов
+
 ## Изменение взаимодействия с LLM
 ### Что просим у LLM теперь
 Prompt переведён на draft `Process IR`.
@@ -213,6 +240,13 @@ LLM должна вернуть:
 - `nodes`
 - `edges`
 - при использовании gateway — `gatewayRole`
+
+### Актуальное уточнение prompt contract
+Для следующей версии prompt желательно зафиксировать:
+- lane обязательно указывать для `task`
+- для `event/gateway` lane можно не указывать
+- LLM не должна пытаться описывать геометрию backward edge
+- LLM описывает только семантику `kind: backward`, а сам маршрут выбирает layout/router слой
 
 ### Что LLM больше не делает
 LLM не подгоняет ответ под renderer specifics.
@@ -248,3 +282,10 @@ LLM не подгоняет ответ под renderer specifics.
 - есть явный mapper `ProcessIR -> ProcessDefinition`
 - diagnostics показывают raw draft, normalized IR, warnings и errors
 - текущий graph preview строится уже не от ad hoc JSON, а от валидного внутреннего IR
+
+## Что зафиксировано как следующее развитие после итерации 2
+На базе итерации 2 принято следующее направление:
+- уйти от жёсткой lane-привязки для event/gateway
+- сохранить `dagre y` там, где он полезен для разведения элементов
+- сделать lanes адаптивными по высоте
+- развивать backward routing от жёсткого bridge-шаблона к более умному выбору обхода с меньшим числом пересечений и изломов

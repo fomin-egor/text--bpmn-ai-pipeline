@@ -8,6 +8,7 @@ interface LaneBackgroundProps {
 
 export function LaneBackground({ metrics, poolLabel }: LaneBackgroundProps) {
   const { x, y, zoom } = useViewport();
+  const laneWidth = metrics.graphWidth - metrics.poolLabelWidth;
 
   return (
     <div
@@ -18,15 +19,24 @@ export function LaneBackground({ metrics, poolLabel }: LaneBackgroundProps) {
         transform: `translate(${x}px, ${y}px) scale(${zoom})`,
       }}
     >
-      <div className="pool-header">{poolLabel}</div>
-      {metrics.laneOffsets.map(({ lane, top }) => (
+      <div
+        className="pool-strip"
+        style={{
+          width: metrics.poolLabelWidth,
+          height: metrics.graphHeight,
+        }}
+      >
+        {poolLabel}
+      </div>
+      {metrics.laneOffsets.map(({ lane, top, height }) => (
         <div
           key={lane.id}
           className="lane-band"
           style={{
             top,
-            height: metrics.laneHeight,
-            width: metrics.graphWidth,
+            left: metrics.poolLabelWidth,
+            height,
+            width: laneWidth,
           }}
         >
           <div className="lane-band__label">{lane.label}</div>

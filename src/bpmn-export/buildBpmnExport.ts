@@ -113,6 +113,10 @@ export function buildBpmnExport(processIr: ProcessIr, layoutResult: LayoutResult
   const laneNodeMap = new Map(sortedLanes.map((lane) => [lane.id, [] as string[]]));
 
   processIr.nodes.forEach((node) => {
+    if (!node.laneId) {
+      return;
+    }
+
     const laneNodes = laneNodeMap.get(node.laneId);
     if (laneNodes) {
       laneNodes.push(node.id);

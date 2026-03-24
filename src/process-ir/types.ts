@@ -1,4 +1,4 @@
-﻿export type ProcessIrNodeType =
+export type ProcessIrNodeType =
   | 'startEvent'
   | 'endEvent'
   | 'task'
@@ -26,7 +26,7 @@ export interface ProcessNodeIr {
   id: string;
   type: ProcessIrNodeType;
   label: string;
-  laneId: string;
+  laneId?: string;
   bpmnType?: string;
   system?: string;
   gatewayRole?: 'split' | 'join' | 'decision';

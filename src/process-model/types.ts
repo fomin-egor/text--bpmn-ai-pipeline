@@ -1,4 +1,4 @@
-﻿export type NodeType =
+export type NodeType =
   | 'startEvent'
   | 'endEvent'
   | 'task'
@@ -16,7 +16,7 @@ export interface ProcessNode {
   id: string;
   type: NodeType;
   label: string;
-  lane: string;
+  lane?: string;
   size: {
     width: number;
     height: number;
