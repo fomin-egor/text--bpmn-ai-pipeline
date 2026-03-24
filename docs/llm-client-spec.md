@@ -1,22 +1,22 @@
 ﻿# Mini-spec: LLM Client
 
-## Purpose
-LLM Client provides a single integration layer for OpenAI-compatible models used by the prototype.
+## Назначение
+LLM Client даёт единый интеграционный слой для OpenAI-compatible моделей, которые использует прототип.
 
-Responsibilities:
-- store and apply connection config
-- execute chat completion requests
-- return a stable response shape for the chat pipeline
-- keep HTTP details separate from UI and process logic
+Ответственность:
+- хранение и применение connection config
+- выполнение chat completion запросов
+- возврат стабильного response shape для chat pipeline
+- отделение HTTP-деталей от UI и process logic
 
-## Supported providers
-Two provider modes are supported:
+## Поддерживаемые провайдеры
+Поддерживаются два режима провайдера:
 - `openrouter`
 - `local`
 
-The UI and client code should keep one internal config shape.
+UI и клиентский код должны использовать одну внутреннюю форму конфигурации.
 
-## Connection model
+## Модель подключения
 ```ts
 export interface LlmConnectionConfig {
   provider: 'openrouter' | 'local';
@@ -28,44 +28,44 @@ export interface LlmConnectionConfig {
 }
 ```
 
-Notes:
-- `transport` is meaningful only for `openrouter`
-- `local` always uses server transport in MVP
-- `browser` for `openrouter` is experimental
-- `server` for `openrouter` is the recommended path
+Примечания:
+- `transport` имеет смысл только для `openrouter`
+- `local` в MVP всегда использует server transport
+- `browser` для `openrouter` является экспериментальным режимом
+- `server` для `openrouter` остаётся рекомендуемым сценарием
 
-## Variant 1. OpenRouter
-### Required fields
+## Вариант 1. OpenRouter
+### Обязательные поля
 - `provider: 'openrouter'`
 - `apiKey`
 - `model`
 - `temperature`
 
-### Optional fields
+### Необязательные поля
 - `baseUrl`
-Default:
+По умолчанию:
 - `https://openrouter.ai/api/v1`
 
-### Supported transports
+### Поддерживаемые транспорты
 1. `server`
-Recommended.
-The frontend calls local backend proxy, and the backend calls OpenRouter.
+Рекомендуемый режим.
+Frontend вызывает локальный backend proxy, а backend вызывает OpenRouter.
 
 2. `browser`
-Experimental.
-The frontend calls OpenRouter directly from the browser.
-This mode is useful for some VPN/network scenarios, but may fail in certain browsers or network policies.
+Экспериментальный режим.
+Frontend вызывает OpenRouter напрямую из браузера.
+Этот режим полезен в некоторых VPN/network сценариях, но может ломаться в отдельных браузерах или при жёстких сетевых политиках.
 
-## Variant 2. Local internal model
-### Required fields
+## Вариант 2. Локальная внутренняя модель
+### Обязательные поля
 - `provider: 'local'`
 - `baseUrl`
 - `apiKey`
 - `model`
 - `temperature`
 
-### MVP note
-No additional local-model-specific fields are required in the first stage.
+### Примечание для MVP
+На первом этапе дополнительных local-specific полей не требуется.
 
 ## Backend API
 ### Endpoint
@@ -103,15 +103,15 @@ No additional local-model-specific fields are required in the first stage.
 }
 ```
 
-## Error handling requirements
-The client should distinguish at least:
+## Требования к обработке ошибок
+Клиент должен различать как минимум:
 - configuration error
 - upstream API error
 - network error
 - malformed response
 - timeout
 
-Recommended error payload shape:
+Рекомендуемый формат error payload:
 ```json
 {
   "error": {
@@ -121,16 +121,15 @@ Recommended error payload shape:
 }
 ```
 
-## Current implementation notes
-Implemented in iteration 1:
-- OpenRouter via local proxy
-- OpenRouter via browser-direct experimental mode
-- local OpenAI-compatible provider via proxy
-- improved proxy diagnostics for upstream and network failures
+## Что уже реализовано в итерации 1
+- OpenRouter через local proxy
+- OpenRouter через browser-direct experimental mode
+- local OpenAI-compatible provider через proxy
+- улучшенная proxy-диагностика для upstream и network ошибок
 
-## Non-functional requirements
-- backend timeout should remain configurable later
-- `temperature` should always be passed explicitly
-- connection config should not be mixed with process data
-- chat history should not be mixed with transport implementation details
-- streaming may be added later without breaking the base contract
+## Нефункциональные требования
+- backend timeout должен оставаться конфигурируемым позже
+- `temperature` должна всегда передаваться явно
+- connection config не должен смешиваться с process data
+- chat history не должна смешиваться с transport implementation details
+- streaming можно добавить позже без ломки базового контракта

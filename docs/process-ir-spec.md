@@ -1,22 +1,22 @@
-﻿# Process IR Spec
+﻿# Спецификация Process IR
 
-## Purpose
-Process IR is the intermediate representation between the LLM layer and deterministic engineering layers.
+## Назначение
+Process IR — это промежуточное представление между LLM-слоем и детерминированными инженерными слоями.
 
 Pipeline:
 `user text -> LLM -> Process IR -> validation/normalization -> layout -> BPMN XML`
 
-Process IR is not BPMN XML and not React Flow state.
-It is the main internal process contract.
+Process IR не является BPMN XML и не является React Flow state.
+Это основной внутренний контракт процесса.
 
-## Requirements for IR
-IR should be:
-- strict enough for validation
-- simple enough for LLM output
-- rich enough for layout and export
-- stable across iterations
+## Требования к IR
+IR должен быть:
+- достаточно строгим для validation
+- достаточно простым для LLM output
+- достаточно богатым для layout и export
+- стабильным между итерациями
 
-## Top-level shape
+## Верхнеуровневая структура
 ```ts
 export interface ProcessIR {
   version: string;
@@ -29,19 +29,19 @@ export interface ProcessIR {
 ```
 
 ## `version`
-Schema version.
+Версия схемы IR.
 
-Purpose:
-- allows safe format evolution
-- lets backend distinguish payload versions
+Смысл:
+- позволяет безопасно развивать формат
+- позволяет backend различать payload разных версий
 
-Example:
+Пример:
 ```json
 "version": "1.0"
 ```
 
 ## `process`
-Process metadata.
+Метаданные процесса.
 
 ```ts
 export interface ProcessMeta {
@@ -53,12 +53,12 @@ export interface ProcessMeta {
 }
 ```
 
-Field meaning:
-- `id`: stable technical id of the process
-- `title`: display title
-- `poolId`: technical pool id
-- `poolLabel`: display pool label
-- `description`: optional text description for UI and traceability
+Смысл полей:
+- `id`: стабильный технический идентификатор процесса
+- `title`: отображаемое название
+- `poolId`: технический идентификатор pool
+- `poolLabel`: отображаемое название pool
+- `description`: необязательное текстовое описание для UI и traceability
 
 ## `lanes`
 ```ts
@@ -70,11 +70,11 @@ export interface ProcessLaneIR {
 }
 ```
 
-Field meaning:
-- `id`: stable lane id
-- `label`: lane title
-- `order`: top-to-bottom lane order
-- `actor`: optional human-readable actor name
+Смысл полей:
+- `id`: стабильный идентификатор lane
+- `label`: подпись lane
+- `order`: порядок lanes сверху вниз
+- `actor`: необязательное человекочитаемое название роли
 
 ## `nodes`
 ```ts
@@ -97,15 +97,15 @@ export interface ProcessNodeIR {
 }
 ```
 
-Field meaning:
-- `id`: unique node id
-- `type`: BPMN-light node type for MVP
-- `label`: visible node label
-- `laneId`: owning lane
-- `bpmnType`: optional future BPMN semantic refinement
-- `system`: external system or execution context
-- `gatewayRole`: semantic gateway role
-- `metadata`: extensible container for future structured data
+Смысл полей:
+- `id`: уникальный идентификатор узла
+- `type`: BPMN-light тип узла в рамках MVP
+- `label`: отображаемая подпись узла
+- `laneId`: принадлежность узла к lane
+- `bpmnType`: необязательное уточнение BPMN semantics на будущее
+- `system`: внешняя система или контекст выполнения
+- `gatewayRole`: семантическая роль gateway
+- `metadata`: расширяемый контейнер для будущих структурированных данных
 
 ## `edges`
 ```ts
@@ -120,14 +120,14 @@ export interface ProcessEdgeIR {
 }
 ```
 
-Field meaning:
-- `id`: unique edge id
-- `source`: source node id
-- `target`: target node id
-- `label`: visible transition label
-- `kind`: direction semantics for layout
-- `condition`: decision text
-- `isDefault`: default gateway flow marker
+Смысл полей:
+- `id`: уникальный идентификатор связи
+- `source`: идентификатор исходного узла
+- `target`: идентификатор целевого узла
+- `label`: отображаемая подпись перехода
+- `kind`: семантика направления для layout
+- `condition`: условие перехода
+- `isDefault`: признак default flow для gateway
 
 ## `warnings`
 ```ts
@@ -139,71 +139,71 @@ export interface ProcessWarning {
 }
 ```
 
-Purpose:
-- capture ambiguities without converting them immediately into hard errors
-- show where LLM was uncertain or where normalization changed the draft
+Смысл:
+- фиксировать неоднозначности без немедленного превращения их в hard error
+- показывать места, где LLM была неуверенна или где normalizer что-то исправил
 
-## Minimum invariants of valid IR
-### Process
-- `process.id` is required
-- `process.title` is required
+## Минимальные инварианты валидного IR
+### По process
+- `process.id` обязателен
+- `process.title` обязателен
 
-### Lanes
-- lane ids are unique
-- `order` values are unique
-- every referenced `laneId` exists
+### По lanes
+- lane ids уникальны
+- значения `order` уникальны
+- каждый используемый `laneId` существует
 
-### Nodes
-- node ids are unique
-- every node has a supported `type`
-- every node belongs to an existing lane
+### По nodes
+- node ids уникальны
+- каждый node имеет допустимый `type`
+- каждый node принадлежит существующему lane
 
-### Edges
-- edge ids are unique
-- `source` and `target` refer to existing nodes
-- self-loops are forbidden in MVP
+### По edges
+- edge ids уникальны
+- `source` и `target` ссылаются на существующие nodes
+- self-loop запрещён для MVP
 
-### Structural
-- at least one `startEvent`
-- at least one `endEvent`
-- no dangling references
+### По структуре
+- должен существовать хотя бы один `startEvent`
+- должен существовать хотя бы один `endEvent`
+- не должно быть висячих ссылок
 
-## Intentionally not in IR v1
-- exact coordinates
-- canvas node sizes
+## Что намеренно не входит в IR v1
+- точные координаты
+- размеры canvas-узлов
 - BPMN DI bounds
-- React/renderer-specific fields
-- XML serializer implementation details
+- React/render-specific поля
+- детали XML serializer implementation
 
-Those should appear only after layout.
+Эти данные должны появляться только после layout phase.
 
-## Relation to current prototype
-Current `ProcessDefinition` is a simplified preview/layout model.
+## Отношение к текущему прототипу
+Текущая `ProcessDefinition` — это упрощённая preview/layout model.
 
-Planned evolution:
-- `ProcessIR` becomes the domain model
-- normalizer converts LLM output into `ProcessIR`
-- layout mapper converts `ProcessIR -> ProcessDefinition`
-- BPMN export works from `ProcessIR + layout result`
+План развития:
+- `ProcessIR` становится доменной моделью
+- normalizer приводит LLM output к `ProcessIR`
+- layout mapper преобразует `ProcessIR -> ProcessDefinition`
+- BPMN export работает из `ProcessIR + layout result`
 
-## Example Process IR
+## Пример Process IR
 ```json
 {
   "version": "1.0",
   "process": {
     "id": "service_rollout",
-    "title": "Service rollout",
+    "title": "Разворачивание сервиса",
     "poolId": "deployment_process",
     "poolLabel": "Deployment Process"
   },
   "lanes": [
-    { "id": "manager", "label": "Project manager", "order": 0 },
-    { "id": "devops", "label": "DevOps engineer", "order": 1 }
+    { "id": "manager", "label": "Менеджер проекта", "order": 0 },
+    { "id": "devops", "label": "DevOps-инженер", "order": 1 }
   ],
   "nodes": [
     { "id": "start", "type": "startEvent", "label": "Start", "laneId": "manager" },
-    { "id": "create_ticket", "type": "task", "label": "Create ticket", "laneId": "manager", "system": "Jira" },
-    { "id": "configure_env", "type": "task", "label": "Configure environment", "laneId": "devops", "system": "Ansible" }
+    { "id": "create_ticket", "type": "task", "label": "Создать задачу", "laneId": "manager", "system": "Jira" },
+    { "id": "configure_env", "type": "task", "label": "Настроить окружение", "laneId": "devops", "system": "Ansible" }
   ],
   "edges": [
     { "id": "e1", "source": "start", "target": "create_ticket", "kind": "forward" },

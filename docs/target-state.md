@@ -1,26 +1,26 @@
-﻿# Target State
+﻿# Целевое состояние прототипа
 
-## Purpose
-The prototype should evolve from a local BPMN layout playground into a focused BPMN generation pipeline for lane-based flow processes.
+## Назначение
+Прототип должен эволюционировать из локального layout playground в узкий, но устойчивый pipeline генерации BPMN для процессов с lanes.
 
-The core principle stays the same:
-- LLM interprets natural language and produces a structured draft.
-- Validation, normalization, layout, and BPMN XML export stay deterministic.
+Ключевой принцип остаётся таким:
+- LLM отвечает за понимание естественного языка и построение структурированного черновика.
+- Валидация, нормализация, layout и BPMN XML export остаются детерминированной инженерной частью.
 
-## End-to-end user scenario
-1. User opens the web app.
-2. User configures an LLM connection.
-3. User describes a process in natural language in chat.
-4. The system converts the description into structured process JSON / Process IR.
-5. The system validates and normalizes the result.
-6. The layout engine builds a visual graph.
-7. The user sees the diagram, JSON model, and diagnostics.
-8. The system generates BPMN XML with semantic and DI parts.
-9. The user exports a `.bpmn` file and opens it in Camunda Modeler.
+## Целевой пользовательский сценарий
+1. Пользователь открывает веб-приложение.
+2. Пользователь настраивает подключение к LLM.
+3. Пользователь описывает процесс естественным языком в чате.
+4. Система переводит описание в структурированный JSON / Process IR.
+5. Система валидирует и нормализует результат.
+6. Layout engine строит визуальный граф.
+7. Пользователь видит диаграмму, JSON-модель и диагностические сообщения.
+8. Система генерирует BPMN XML с семантической и DI-частью.
+9. Пользователь экспортирует `.bpmn` и открывает его в Camunda Modeler.
 
-## MVP boundaries
-Supported BPMN-light subset:
-- one process in one pool
+## Границы MVP
+Поддерживаемый BPMN-light поднабор:
+- один process в одном pool
 - lanes
 - startEvent
 - endEvent
@@ -28,9 +28,9 @@ Supported BPMN-light subset:
 - exclusiveGateway
 - parallelGateway
 - sequenceFlow
-- backward edges as layout-level loop semantics
+- backward edges как инженерная семантика возвратных переходов для layout
 
-Out of scope for MVP:
+Что не входит в MVP:
 - message flows
 - choreography
 - boundary events
@@ -38,95 +38,95 @@ Out of scope for MVP:
 - text annotations
 - compensation
 - call activities
-- full BPMN XML editing on canvas
+- полноценное редактирование BPMN XML на canvas
 
-## Target architecture
-The system should be split into independent layers.
+## Целевая архитектура
+Система должна быть разделена на независимые слои.
 
 ### Chat UI
-Responsibilities:
-- chat history
-- text input
-- showing generated result
-- showing diagnostics and errors
+Ответственность:
+- история чата
+- ввод текста
+- показ результата генерации
+- показ ошибок и диагностических сообщений
 
 ### LLM Client Layer
-Responsibilities:
-- manage provider configuration
-- run chat completion requests
-- hide HTTP details from the rest of the app
-- support OpenRouter and local OpenAI-compatible models
+Ответственность:
+- управление конфигурацией провайдера
+- выполнение chat completion запросов
+- скрытие HTTP-деталей от остальных слоёв
+- поддержка OpenRouter и локальных OpenAI-compatible моделей
 
 ### Process IR Layer
-Responsibilities:
-- store normalized process structure
-- serve as the main internal contract
-- stay suitable for LLM output, validation, layout, and export
+Ответственность:
+- хранение нормализованной структуры процесса
+- роль основного внутреннего контракта
+- пригодность для LLM output, validation, layout и export
 
 ### Validation and Normalization Layer
-Responsibilities:
-- validate structure and references
-- repair minor defects
-- normalize edge direction and lane membership
-- produce warnings and hard errors
+Ответственность:
+- проверка структуры и ссылочной целостности
+- исправление небольших дефектов
+- нормализация направления связей и принадлежности к lane
+- формирование warnings и hard errors
 
 ### Layout Layer
-Responsibilities:
-- convert Process IR to view model
-- assign columns and lane placement
-- produce deterministic coordinates and routes
-- stay replaceable later with a stronger engine than dagre
+Ответственность:
+- преобразование Process IR во view model
+- назначение колонок и позиции в lanes
+- детерминированный расчёт координат и маршрутов
+- возможность позже заменить dagre на более сильный layout engine
 
 ### BPMN Export Layer
-Responsibilities:
-- generate semantic BPMN model
-- generate BPMN DI from layout result
-- serialize `.bpmn`
-- keep Camunda compatibility in scope
+Ответственность:
+- генерация semantic BPMN model
+- генерация BPMN DI из layout result
+- сериализация `.bpmn`
+- обеспечение совместимости с Camunda
 
-## Target stack
+## Целевой стек
 Frontend:
 - Vite
 - React
 - TypeScript
-- React Flow for preview/edit playground
+- React Flow для preview/edit playground
 
 Backend:
 - Node.js
-- lightweight HTTP server
+- лёгкий HTTP server
 
-Core integrations:
-- OpenAI-compatible HTTP API for LLM
-- `@dagrejs/dagre` as current baseline layout engine
-- `bpmn-moddle` for BPMN XML generation
-- optional later: `elkjs` as next layout candidate
+Ключевые интеграции:
+- OpenAI-compatible HTTP API для LLM
+- `@dagrejs/dagre` как текущий baseline layout engine
+- `bpmn-moddle` для BPMN XML generation
+- опционально позже: `elkjs` как следующий кандидат для layout
 
-## Data artifacts
-The system should keep three distinct representations.
+## Представления данных
+В системе должны существовать три разные формы данных.
 
 1. Chat input/output
-Raw user text and raw LLM responses.
+Сырой пользовательский текст и сырые ответы LLM.
 
 2. Process IR
-The normalized internal process contract.
+Нормализованный внутренний контракт процесса.
 
 3. Layouted diagram model
-Process IR plus coordinates, sizes, and routes for preview and BPMN DI.
+Process IR плюс координаты, размеры и маршруты для preview и BPMN DI.
 
-## Key engineering decisions
-- Do not generate BPMN XML directly from LLM.
-- Do not merge chat state, IR, layout state, and export state into one object.
-- Treat current `ProcessDefinition` as a temporary preview/layout model.
-- Introduce `ProcessIR` as the domain model in the next phase.
-- Keep layout and export deterministic for the same IR.
+## Ключевые инженерные решения
+- Не генерировать BPMN XML напрямую из LLM.
+- Не смешивать chat state, IR, layout state и export state в один объект.
+- Считать текущую `ProcessDefinition` временной preview/layout model.
+- Ввести `ProcessIR` как доменную модель следующего этапа.
+- Делать layout и export детерминированными для одного и того же IR.
 
-## Iteration 1 status
-Implemented in the current prototype:
+## Статус итерации 1
+В текущем прототипе уже реализовано:
 - LLM chat UI
-- OpenRouter and local provider config
-- dual transport for OpenRouter: `Local proxy` and `Browser direct (Experimental)`
-- proxy diagnostics for upstream and network errors
-- JSON draft parsing and validation
-- mapping into current dagre/React Flow preview model
-- process graph rendering from generated result
-- chat/config/status state persisted at page level so it does not reset on tab switches
+- конфигурация OpenRouter и local provider
+- два режима транспорта для OpenRouter: `Local proxy` и `Browser direct (Experimental)`
+- улучшенная диагностика proxy для upstream и network ошибок
+- парсинг и валидация JSON draft
+- маппинг в текущую dagre/React Flow preview model
+- построение графа по сгенерированному результату
+- хранение chat/config/status state на уровне страницы, чтобы состояние не сбрасывалось при переключении вкладок

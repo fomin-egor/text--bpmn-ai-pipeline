@@ -1,141 +1,141 @@
-﻿# Iterations Plan
+﻿# План итераций
 
-## Planning principles
-Each iteration should deliver a working vertical slice, not a loose set of modules.
+## Принципы разбиения
+Каждая итерация должна давать рабочий вертикальный срез, а не набор разрозненных модулей.
 
-Priority order:
-- end-to-end path first
-- stability second
-- BPMN XML export third
-- UX and layout sophistication after that
+Порядок приоритетов:
+- сначала end-to-end путь
+- потом устойчивость
+- потом BPMN XML export
+- потом UX и развитие layout
 
-## Iteration 1. LLM Playground
-### Goal
-Deliver the first usable flow:
+## Итерация 1. LLM Playground
+### Цель
+Дать первый рабочий путь:
 `chat -> JSON draft -> validation -> current canvas`
 
 ### Scope
-- LLM connection UI
-- chat UI
+- UI для конфигурации LLM подключения
+- UI чата
 - OpenAI-compatible backend proxy
-- prompt template for process generation
-- JSON draft parser and validator
-- mapping into current process preview model
-- graph build with current dagre layout
-- process JSON view in the right panel
+- prompt template для генерации процесса
+- parser и validator для JSON draft
+- преобразование в текущую preview model
+- построение графа текущим dagre layout
+- отдельная вкладка с process JSON справа
 
-### Implemented result
-Completed in the current prototype.
+### Фактический результат
+Итерация уже реализована в текущем прототипе.
 
-Delivered:
-- chat + connection settings UI
-- OpenRouter provider support
-- local OpenAI-compatible provider support
-- OpenRouter transport selection:
+Сделано:
+- chat UI и настройки подключения
+- поддержка OpenRouter
+- поддержка local OpenAI-compatible provider
+- выбор транспорта для OpenRouter:
   - `Local proxy (Recommended)`
   - `Browser direct (Experimental)`
-- upstream / network diagnostics in proxy
-- generated process preview in React Flow
-- generated process JSON in a separate right-side tab
-- lifted chat/config/status state so it survives tab switching
+- диагностика upstream и network ошибок в proxy
+- preview сгенерированного процесса в React Flow
+- отдельная вкладка `Process JSON`
+- состояние чата, конфигурации и статуса поднято на уровень страницы и не сбрасывается при переключении вкладок
 
-### Exit criteria
-- user can send a text description
-- app receives LLM output
-- app validates returned JSON
-- app builds a graph with the current dagre renderer
-- app exposes useful diagnostics on failure
+### Критерии завершения
+- пользователь может отправить текстовое описание процесса
+- приложение получает ответ LLM
+- приложение валидирует возвращённый JSON
+- приложение строит граф текущим dagre renderer
+- приложение показывает полезную диагностику при ошибках
 
-## Iteration 2. Introduce Process IR
-### Goal
-Separate the domain model from the preview/layout model.
+## Итерация 2. Введение Process IR
+### Цель
+Отделить доменную модель от preview/layout model.
 
 ### Scope
-- introduce `ProcessIR`
-- introduce normalizer
-- introduce validator
-- introduce warnings/errors model
-- map `ProcessIR -> layout view model`
-- switch LLM output contract from ad hoc JSON to IR
+- ввести `ProcessIR`
+- ввести normalizer
+- ввести validator
+- ввести warnings/errors model
+- сделать mapping `ProcessIR -> layout view model`
+- переключить LLM output contract с ad hoc JSON на Process IR
 
-### Result
-The system runs on a stable internal contract instead of a preview-oriented draft shape.
+### Результат
+Система работает уже не от произвольного draft JSON, а от стабильного внутреннего контракта.
 
-### Artifacts
-- Process IR types
+### Артефакты
+- типы Process IR
 - validation rules
 - normalization rules
-- mapping layer from IR into layout input
+- mapping layer из IR в layout input
 
-## Iteration 3. BPMN Export MVP
-### Goal
-Export a `.bpmn` file that opens in Camunda.
+## Итерация 3. BPMN Export MVP
+### Цель
+Научиться экспортировать `.bpmn`, который открывается в Camunda.
 
 ### Scope
-- connect `bpmn-moddle`
+- подключить `bpmn-moddle`
 - semantic mapping `ProcessIR -> BPMN`
 - DI mapping `layout result -> BPMN DI`
-- export action from UI
-- smoke validation through re-import
+- export action из UI
+- smoke validation через повторный import
 
-### Result
-The user can export BPMN XML from a generated process.
+### Результат
+Пользователь может выгрузить BPMN XML из построенного процесса.
 
-### Artifacts
+### Артефакты
 - export service
 - XML serializer
 - download action
-- Camunda compatibility checklist
+- checklist совместимости с Camunda
 
-## Iteration 4. Stability and UX
-### Goal
-Make the prototype comfortable for repeated real-world testing.
+## Итерация 4. Устойчивость и UX
+### Цель
+Сделать прототип удобным для повторяемого реального тестирования.
 
 ### Scope
 - richer LLM diagnostics
 - IR/debug editor panel
-- rerun normalization manually
-- save/load session
-- compare raw LLM JSON and normalized IR
-- layout warnings for problematic diagrams
+- ручной rerun normalization
+- сохранение и загрузка session
+- сравнение raw LLM JSON и normalized IR
+- предупреждения layout для проблемных схем
 
-### Result
-The prototype becomes a practical research instrument instead of a one-shot demo.
+### Результат
+Прототип становится рабочим исследовательским инструментом, а не одноразовой демо-сборкой.
 
-### Artifacts
+### Артефакты
 - diagnostics UI
 - session persistence
 - richer validation messages
 
-## Iteration 5. Layout Engine v2
-### Goal
-Reduce dependence on dagre limitations.
+## Итерация 5. Layout Engine v2
+### Цель
+Снизить зависимость от ограничений dagre.
 
 ### Scope
-- formal layout engine interface
-- keep dagre as baseline
-- evaluate `elkjs`
-- improve routing for loops and dense branches
-- improve lane packing logic
+- выделить формальный layout engine interface
+- оставить dagre как baseline
+- исследовать `elkjs`
+- улучшить routing для loops и dense branches
+- улучшить lane packing logic
 
-### Result
-Layout can evolve without rewriting chat, IR, or export layers.
+### Результат
+Layout можно развивать без переписывания chat, IR и export слоёв.
 
-### Artifacts
+### Артефакты
 - layout abstraction
-- second layout prototype
-- layout comparison cases
+- второй layout prototype
+- набор cases для сравнения движков
 
-## Recommended order
-1. Iteration 1
-2. Iteration 2
-3. Iteration 3
-4. Iteration 4
-5. Iteration 5
+## Рекомендуемый порядок
+1. Итерация 1
+2. Итерация 2
+3. Итерация 3
+4. Итерация 4
+5. Итерация 5
 
-## Why this order
-- Iteration 1 delivers the first end-to-end MVP.
-- Iteration 2 prevents architecture drift before XML export.
-- Iteration 3 delivers the main product outcome: `.bpmn` export.
-- Iteration 4 improves research usability.
-- Iteration 5 improves layout quality without blocking the core pipeline.
+## Почему именно так
+- Итерация 1 даёт первый end-to-end MVP.
+- Итерация 2 не даёт архитектуре расползтись до старта XML export.
+- Итерация 3 даёт главный продуктовый результат: `.bpmn` файл.
+- Итерация 4 повышает пригодность прототипа для исследования и тестов.
+- Итерация 5 улучшает качество layout, не блокируя основной pipeline.
