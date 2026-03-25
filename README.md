@@ -12,6 +12,8 @@ Research prototype for the pipeline `text -> LLM -> Process IR -> layout -> BPMN
 - exports semantic BPMN + BPMN DI as a `.bpmn` file
 - opens exported BPMN in Camunda for manual verification
 
+<img width="1914" height="924" alt="image" src="https://github.com/user-attachments/assets/4c105637-8d58-4749-b410-8e8aeaa73ad3" />
+
 ## Stack
 
 - React + TypeScript
