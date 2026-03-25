@@ -208,7 +208,7 @@ export function buildBpmnExport(processIr: ProcessIr, layoutResult: LayoutResult
     '  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"',
     '  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"',
     '  targetNamespace="http://bpmn.io/schema/bpmn"',
-    '  exporter="BPMN Dagre Prototype"',
+    '  exporter="text->bpmn ai pipeline"',
     '  exporterVersion="0.3.0">',
     `  <bpmn:collaboration id="${escapeAttribute(collaborationId)}">`,
     `    <bpmn:participant id="${escapeAttribute(participantId)}" name="${escapeAttribute(processIr.process.poolLabel)}" processRef="${escapeAttribute(processIr.process.id)}" />`,

@@ -172,7 +172,7 @@ export default function App() {
       <section className="workspace-pane">
         <div className="workspace-topbar">
           <div className="workspace-topbar__title">
-            <p className="eyebrow">BPMN Layout Lab</p>
+            <p className="eyebrow">{"text->bpmn ai pipeline"}</p>
             <h1>{selectedProcess.title}</h1>
           </div>
 

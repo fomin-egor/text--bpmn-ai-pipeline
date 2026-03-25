@@ -51,7 +51,7 @@ async function sendOpenRouterDirect(request: LlmChatRequest): Promise<LlmChatRes
       'Content-Type': 'application/json',
       Authorization: `Bearer ${request.connection.apiKey}`,
       'HTTP-Referer': window.location.origin,
-      'X-Title': 'BPMN Dagre Prototype',
+      'X-Title': 'text->bpmn ai pipeline',
     },
     body: JSON.stringify({
       model: request.connection.model,
