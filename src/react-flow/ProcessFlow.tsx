@@ -38,6 +38,21 @@ interface ProcessFlowCanvasProps {
   initialLayout: LayoutResult;
 }
 
+function minimapNodeColor(node: { data?: { type?: string } }) {
+  switch (node.data?.type) {
+    case 'task':
+      return '#334155';
+    case 'startEvent':
+    case 'endEvent':
+      return '#0f766e';
+    case 'exclusiveGateway':
+    case 'parallelGateway':
+      return '#a16207';
+    default:
+      return '#475569';
+  }
+}
+
 function ProcessFlowCanvas({ process, initialLayout }: ProcessFlowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialLayout.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialLayout.edges);
@@ -65,8 +80,8 @@ function ProcessFlowCanvas({ process, initialLayout }: ProcessFlowCanvasProps) {
         minZoom={0.35}
       >
         <LaneBackground metrics={layoutMetrics} poolLabel={process.pool.label} />
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1.1} color="#d8ddd4" />
-        <MiniMap pannable zoomable className="minimap" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1.1} color="#1f2832" />
+        <MiniMap pannable zoomable className="minimap" nodeColor={minimapNodeColor} maskColor="rgba(7, 10, 14, 0.38)" />
         <Controls position="bottom-left" />
         <Panel position="top-left">
           <button className="toolbar-button" onClick={handleAutoLayout}>

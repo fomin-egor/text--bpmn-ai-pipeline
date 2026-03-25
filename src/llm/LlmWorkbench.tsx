@@ -6,7 +6,7 @@ import type { ProcessIr } from '../process-ir/types';
 import { validateProcessIr } from '../process-ir/validateProcessIr';
 import { sendLlmChatRequest } from './api';
 import { PROCESS_GENERATION_SYSTEM_PROMPT } from './systemPrompt';
-import type { ChatMessage, LlmConnectionConfig, LlmTransport } from './types';
+import type { ChatMessage, LlmConnectionConfig } from './types';
 
 interface ProcessDiagnosticsState {
   rawLlmJson: string;
@@ -39,7 +39,6 @@ export function LlmWorkbench({
   statusText,
   isLoading,
   diagnostics,
-  onConnectionChange,
   onMessagesChange,
   onInputChange,
   onStatusTextChange,
@@ -47,48 +46,26 @@ export function LlmWorkbench({
   onDiagnosticsChange,
   onProcessGenerated,
 }: LlmWorkbenchProps) {
-  const handleConnectionFieldChange = <K extends keyof LlmConnectionConfig>(key: K, value: LlmConnectionConfig[K]) => {
-    onConnectionChange({
-      ...connection,
-      [key]: value,
-    });
-  };
-
-  const handleProviderChange = (provider: 'openrouter' | 'local') => {
-    onConnectionChange({
-      ...connection,
-      provider,
-      transport: 'server',
-    });
-  };
-
-  const handleTransportChange = (transport: LlmTransport) => {
-    onConnectionChange({
-      ...connection,
-      transport,
-    });
-  };
-
   const handleSend = async () => {
     const trimmedInput = input.trim();
 
     if (!trimmedInput) {
-      onStatusTextChange('Введите описание процесса.');
+      onStatusTextChange('Enter a process description.');
       return;
     }
 
     if (!connection.apiKey.trim()) {
-      onStatusTextChange('Укажите API key.');
+      onStatusTextChange('Enter an API key.');
       return;
     }
 
     if (!connection.model.trim()) {
-      onStatusTextChange('Укажите model.');
+      onStatusTextChange('Enter a model name.');
       return;
     }
 
     if (connection.provider === 'local' && !connection.baseUrl?.trim()) {
-      onStatusTextChange('Для локальной модели нужен baseUrl.');
+      onStatusTextChange('Local provider requires a baseUrl.');
       return;
     }
 
@@ -110,10 +87,10 @@ export function LlmWorkbench({
     });
     onStatusTextChange(
       connection.provider === 'openrouter' && connection.transport === 'browser'
-        ? 'Отправляю описание в OpenRouter напрямую из браузера...'
+        ? 'Sending request to OpenRouter from the browser...'
         : connection.provider === 'openrouter'
-          ? 'Отправляю описание в OpenRouter через local proxy...'
-          : 'Отправляю описание в локальную LLM...'
+          ? 'Sending request to OpenRouter through local proxy...'
+          : 'Sending request to local LLM...'
     );
 
     try {
@@ -141,7 +118,7 @@ export function LlmWorkbench({
           validationWarnings: [],
           validationErrors: parsedDraft.errors,
         });
-        onStatusTextChange('LLM ответила, но draft Process IR не является валидным JSON.');
+        onStatusTextChange('LLM returned a response, but the draft Process IR is not valid JSON.');
         return;
       }
 
@@ -157,7 +134,7 @@ export function LlmWorkbench({
       });
 
       if (!validated.ok || !validated.value) {
-        onStatusTextChange('Draft Process IR нормализован, но не прошёл валидацию.');
+        onStatusTextChange('Draft Process IR was normalized, but validation failed.');
         return;
       }
 
@@ -167,101 +144,20 @@ export function LlmWorkbench({
       const warningCount = normalized.warnings.length + validated.warnings.length;
       onStatusTextChange(
         warningCount > 0
-          ? `Процесс "${processDefinition.title}" построен с ${warningCount} предупреждениями.`
-          : `Процесс "${processDefinition.title}" построен.`
+          ? `Process "${processDefinition.title}" was built with ${warningCount} warnings.`
+          : `Process "${processDefinition.title}" was built.`
       );
     } catch (error) {
-      onStatusTextChange(error instanceof Error ? error.message : 'Ошибка запроса к LLM');
+      onStatusTextChange(error instanceof Error ? error.message : 'LLM request failed.');
     } finally {
       onLoadingChange(false);
     }
   };
 
   return (
-    <div className="llm-workbench">
-      <div className="tool-pane__header">
-        <div>
-          <p className="eyebrow">LLM Client</p>
-          <h2>Chat</h2>
-        </div>
-        <p className="supporting-text">Пайплайн второй итерации: chat -&gt; Process IR draft -&gt; normalize -&gt; validate -&gt; preview mapper.</p>
-      </div>
-
-      <details className="settings-box">
-        <summary>Connection settings</summary>
-        <div className="llm-config-grid">
-          <label className="field-block">
-            <span>Provider</span>
-            <select value={connection.provider} onChange={(event) => handleProviderChange(event.target.value as 'openrouter' | 'local')}>
-              <option value="openrouter">OpenRouter</option>
-              <option value="local">Local</option>
-            </select>
-          </label>
-
-          {connection.provider === 'openrouter' && (
-            <label className="field-block">
-              <span>Transport</span>
-              <select value={connection.transport} onChange={(event) => handleTransportChange(event.target.value as LlmTransport)}>
-                <option value="server">Local proxy (Recommended)</option>
-                <option value="browser">Browser direct (Experimental)</option>
-              </select>
-            </label>
-          )}
-
-          {connection.provider === 'openrouter' && connection.transport === 'browser' && (
-            <p className="inline-note inline-note--warning">
-              Experimental mode. Может не работать в отдельных браузерах, VPN-конфигурациях и при строгих сетевых политиках.
-            </p>
-          )}
-
-          {connection.provider === 'local' && (
-            <label className="field-block field-block--full">
-              <span>Base URL</span>
-              <input
-                type="text"
-                value={connection.baseUrl ?? ''}
-                placeholder="http://localhost:8000/v1"
-                onChange={(event) => handleConnectionFieldChange('baseUrl', event.target.value)}
-              />
-            </label>
-          )}
-
-          <label className="field-block field-block--full">
-            <span>API Key</span>
-            <input
-              type="password"
-              value={connection.apiKey}
-              placeholder="sk-..."
-              onChange={(event) => handleConnectionFieldChange('apiKey', event.target.value)}
-            />
-          </label>
-
-          <label className="field-block field-block--full">
-            <span>Model</span>
-            <input
-              type="text"
-              value={connection.model}
-              placeholder={connection.provider === 'openrouter' ? 'openai/gpt-5-mini' : 'qwen2.5-72b-instruct'}
-              onChange={(event) => handleConnectionFieldChange('model', event.target.value)}
-            />
-          </label>
-
-          <label className="field-block">
-            <span>Temperature</span>
-            <input
-              type="number"
-              min="0"
-              max="2"
-              step="0.1"
-              value={connection.temperature}
-              onChange={(event) => handleConnectionFieldChange('temperature', Number(event.target.value))}
-            />
-          </label>
-        </div>
-      </details>
-
+    <div className="llm-workbench llm-workbench--minimal">
       <div className="chat-log" aria-live="polite">
-        {messages.length === 0 && <p className="chat-placeholder">Здесь появятся сообщения чата и raw JSON draft, который вернула модель.</p>}
+        {messages.length === 0 && <p className="chat-placeholder">Describe a process to generate a diagram.</p>}
         {messages.map((message, index) => (
           <article key={`${message.role}-${index}`} className={`chat-bubble chat-bubble--${message.role}`}>
             <div className="chat-bubble__meta">{message.role === 'user' ? 'User' : message.role === 'assistant' ? 'LLM' : 'System'}</div>
@@ -272,16 +168,13 @@ export function LlmWorkbench({
 
       <div className="chat-footer">
         <div className="chat-composer">
-          <label className="field-block field-block--full">
-            <span>Описание процесса</span>
-            <textarea value={input} onChange={(event) => onInputChange(event.target.value)} rows={4} />
-          </label>
+          <textarea value={input} onChange={(event) => onInputChange(event.target.value)} rows={4} placeholder="Describe the process..." />
           <div className="chat-composer__actions">
-            <button className="toolbar-button" onClick={handleSend} disabled={isLoading}>
-              {isLoading ? 'Generating...' : 'Generate Process'}
+            <button className="toolbar-button toolbar-button--primary" onClick={handleSend} disabled={isLoading}>
+              {isLoading ? 'Sending...' : 'Send'}
             </button>
             <button
-              className="toolbar-button toolbar-button--secondary"
+              className="icon-button"
               onClick={() => {
                 onMessagesChange([]);
                 onDiagnosticsChange({
@@ -291,11 +184,13 @@ export function LlmWorkbench({
                   validationWarnings: [],
                   validationErrors: [],
                 });
-                onStatusTextChange('Чат очищен.');
+                onStatusTextChange('Chat cleared.');
               }}
               disabled={isLoading}
+              aria-label="Clear chat"
+              title="Clear chat"
             >
-              Clear Chat
+              x
             </button>
           </div>
         </div>

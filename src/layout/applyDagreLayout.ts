@@ -807,11 +807,11 @@ export function applyDagreLayout(process: ProcessDefinition): LayoutResult {
     style:
       edge.kind === 'backward'
         ? {
-            stroke: '#d9485f',
+            stroke: '#f0657d',
             strokeWidth: 2,
           }
         : {
-            stroke: '#2f4558',
+            stroke: '#8fb3d9',
             strokeWidth: 1.8,
           },
     labelStyle: {
